@@ -1,6 +1,6 @@
 {
   "name": "Osei TV",
-  "description": "Osei TV - The ultimate live streaming platform for news, sports, and entertainment. Experience high-quality HLS streams with real-time chat, personalized favorites, and a modern, high-performance interface. Fully cross-platform with PWA and native Android support.",
+  "description": "Osei TV - The ultimate native Android live streaming platform for news, sports, and entertainment. Experience high-performance playback with a modern WebView-based HLS player, real-time EPG, and a Jetpack Compose interface.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

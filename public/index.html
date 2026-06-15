@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Osei TV - Professional Live Player</title>
+    
+    <!-- PWA Meta Elements -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#df256a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://img.icons8.com/color/192/television.png">
+    
+    <!-- Import Tailwind via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Import hls.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.12/dist/hls.min.js" onerror="console.error('HLS.js failed to load')"></script>
+    <!-- Import Firebase compat SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js" onerror="console.error('Firebase failed to load')"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+    <script>
+        // Data injected by server 
+        // Use default if injection fails to prevent syntax error
+        const _INJECTED_CHANNELS = {{CHANNELS}};
+        const _INJECTED_FIREBASE_CONFIG = {{FIREBASE_CONFIG}};
+        
+        const CHANNELS = Array.isArray(_INJECTED_CHANNELS) ? _INJECTED_CHANNELS : [];
+        const FIREBASE_CONFIG = _INJECTED_FIREBASE_CONFIG || {};
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .display-font { font-family: 'Space Grotesk', sans-serif; }
+        .scrollbar-none::-webkit-scrollbar { display: none; }
+        .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-[#0b0c10] text-[#c5c6c7] min-h-screen flex flex-col selection:bg-red-600 selection:text-white overflow-x-hidden">
+
+    <!-- Top Glow Line -->
+    <div class="h-1 bg-gradient-to-r from-red-600 via-orange-500 to-red-600 w-full animate-pulse z-50"></div>
+
+    <!-- Header Section -->
+    <header class="bg-[#12141c]/90 backdrop-blur-md border-b border-zinc-800/80 sticky top-0 z-40 px-4 py-4 md:px-8">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600 to-orange-600 flex items-center justify-center shadow-lg shadow-red-900/40 border border-red-500/30">
+                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="display-font text-2xl font-black tracking-wider text-white">OSEI TV</h1>
+                    <p class="text-xs text-red-500 font-bold tracking-widest uppercase">Premium Live Experience</p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3">
+                <button id="install-guide-btn" class="flex items-center gap-2 px-4 py-2 border border-zinc-700/50 rounded-lg text-xs font-black uppercase text-zinc-400 hover:text-white hover:border-zinc-500 transition-all">
+                    Installation Guide
+                </button>
+                <a href="/app-debug.apk" class="flex items-center gap-3 px-5 py-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black transition-all duration-300 hover:scale-[1.03] active:scale-95 group shadow-lg shadow-red-900/20">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <div class="text-left">
+                        <div class="text-xs opacity-80 leading-none">Download App</div>
+                        <div class="text-sm tracking-wide leading-tight">Android APK</div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Installation Modal -->
+    <div id="install-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden">
+        <div class="bg-[#12141c] border border-zinc-800 rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl">
+            <div class="p-6 border-b border-zinc-800 flex items-center justify-between">
+                <h2 class="display-font font-black text-xl text-white">HOW TO INSTALL OSEI TV</h2>
+                <button id="close-modal" class="text-zinc-500 hover:text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="p-8 space-y-8">
+                <div class="flex gap-6">
+                    <div class="shrink-0 w-12 h-12 bg-red-500/10 rounded-2xl flex items-center justify-center text-red-500">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    </div>
+                    <div>
+                        <h3 class="font-black text-white text-lg mb-2">Download & USB Transfer</h3>
+                        <p class="text-zinc-500 text-sm leading-relaxed mb-4">
+                            1. Click <b>"Download APK"</b> below to save the installer to your computer.<br>
+                            2. Connect your phone via <b>USB cable</b>.<br>
+                            3. Copy the <code>app-debug.apk</code> file to your phone's storage.<br>
+                            4. On your phone, open the file and tap <b>Install</b>.
+                        </p>
+                        <a href="/app-debug.apk" class="inline-block px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-black uppercase">Download APK Now</a>
+                    </div>
+                </div>
+                <div class="flex gap-6">
+                    <div class="shrink-0 w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-500">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    </div>
+                    <div>
+                        <h3 class="font-black text-white text-lg mb-2">Web App (PWA)</h3>
+                        <p class="text-zinc-500 text-sm leading-relaxed">Runs in your browser but behaves like a native app. Tap <b>"Add to Home Screen"</b> in your mobile browser menu (Chrome) or the <b>"Install"</b> icon in your desktop browser address bar.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 bg-zinc-900 border-t border-zinc-800">
+                <p class="text-center text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Connect via USB to transfer APK if needed</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Assistant Floating UI -->
+    <div id="assistant-container" class="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4">
+        <div id="chat-window" class="w-[350px] sm:w-[400px] h-[500px] bg-[#12141c] border border-zinc-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden hidden transition-all duration-300 scale-95 opacity-0 origin-bottom-right">
+            <div class="p-5 border-b border-zinc-800 bg-red-600/5 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center text-white shadow-lg">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <div>
+                        <h4 class="font-black text-white text-sm">OSEI TV ASSISTANT</h4>
+                        <p class="text-[10px] text-red-500 font-bold uppercase tracking-widest flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
+                            Thinking Mode Active
+                        </p>
+                    </div>
+                </div>
+                <button id="close-chat" class="text-zinc-500 hover:text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div id="chat-messages" class="flex-grow p-6 overflow-y-auto space-y-4 scrollbar-none bg-[#0b0c10]/30">
+                <div class="bg-zinc-800/40 p-4 rounded-2xl rounded-tl-none border border-zinc-700/30 text-sm leading-relaxed text-zinc-300">
+                    Hello! I'm your Osei TV Assistant. I'm powered by advanced reasoning to help you with complex questions about our service. How can I help you today?
+                </div>
+            </div>
+
+            <div class="p-4 bg-zinc-900/80 border-t border-zinc-800">
+                <div class="relative">
+                    <input id="chat-input" type="text" placeholder="Ask me anything complex..." class="w-full bg-black/40 border border-zinc-800 rounded-2xl pl-5 pr-12 py-4 text-sm text-white outline-none focus:border-red-500/60 transition-all">
+                    <button id="send-chat" class="absolute right-2 top-2 w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center text-white hover:bg-red-500 active:scale-95 transition-all">
+                        <svg class="w-5 h-5 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <button id="toggle-assistant" class="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center text-white shadow-2xl shadow-red-900/40 hover:scale-105 active:scale-95 transition-all border border-red-500/50 group relative">
+            <svg class="w-8 h-8 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+            <div class="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-md animate-bounce">
+                <span class="w-2 h-2 bg-red-600 rounded-full"></span>
+            </div>
+        </button>
+    </div>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6 md:px-8 space-y-8">
+        
+        <!-- Prominent Download Banner for the User -->
+        <div class="bg-red-600/10 border border-red-500/20 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative group">
+            <div class="absolute -right-8 -top-8 w-32 h-32 bg-red-500/10 blur-3xl rounded-full group-hover:scale-150 transition-transform duration-700"></div>
+            <div class="relative z-10 flex items-center gap-5">
+                <div class="shrink-0 w-14 h-14 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg shadow-red-900/40">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-xl font-black text-white leading-tight">Ready for your phone?</h2>
+                    <p class="text-zinc-400 text-sm max-w-md">Download the Osei TV APK to install it directly on your Android device and watch anywhere.</p>
+                </div>
+            </div>
+            <div class="relative z-10 w-full md:w-auto">
+                <a href="/app-debug.apk" class="flex items-center justify-center gap-3 px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-xl transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-red-900/30 w-full">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    DOWNLOAD APK
+                </a>
+            </div>
+        </div>
+        
+        <!-- Player Component Target -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div class="lg:col-span-8 flex flex-col gap-6">
+                <!-- Our Standalone Responsive Component -->
+                <div id="hls-player-component" class="rounded-2xl overflow-hidden border border-zinc-800/60 shadow-2xl relative"></div>
+                
+                <!-- Channel Info -->
+                <div class="bg-zinc-900/40 p-6 rounded-2xl border border-zinc-800/50">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 id="active-channel-name" class="text-2xl font-black text-white">Select a channel</h2>
+                        <span id="active-channel-category" class="px-3 py-1 bg-zinc-800 text-zinc-400 text-[10px] font-black uppercase rounded-lg border border-zinc-700">LIVE</span>
+                    </div>
+                    <p id="active-channel-desc" class="text-zinc-400 text-sm leading-relaxed italic">Tune in to start high-performance live streaming.</p>
+                </div>
+            </div>
+
+            <!-- Sidebar: Navigation -->
+            <div class="lg:col-span-4 flex flex-col gap-6">
+                <div class="bg-zinc-900/40 p-5 rounded-2xl border border-zinc-800/50 flex flex-col gap-4">
+                    <h3 class="font-black text-white text-sm tracking-widest uppercase border-b border-zinc-800 pb-3">Stations</h3>
+                    <div id="stations-grid" class="grid grid-cols-1 gap-2 max-h-[500px] overflow-y-auto pr-1">
+                        <!-- Channels will be injected here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Custom URL Tunneler -->
+        <section class="bg-gradient-to-br from-[#161822] to-[#0a0c10] rounded-2xl p-8 border border-zinc-800/60 shadow-xl">
+            <h3 class="display-font font-black text-white text-xl mb-2 flex items-center gap-2">
+                <span class="text-2xl">📡</span> LIVE STREAM TUNER
+            </h3>
+            <p class="text-zinc-500 text-sm mb-6">Enter any HLS (.m3u8) source to play directly in the responsive player component.</p>
+            <div class="flex flex-col md:flex-row gap-4">
+                <input id="custom-url-input" type="text" placeholder="https://example.com/live/stream.m3u8" class="flex-grow bg-black/50 border border-zinc-800 hover:border-zinc-700 focus:border-red-500/60 rounded-xl px-5 py-4 text-white outline-none transition-all font-mono text-sm">
+                <button id="tune-btn" class="px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-black rounded-xl transition-all shadow-lg active:scale-95">TUNE IN</button>
+            </div>
+        </section>
+    </main>
+
+    <footer class="py-8 text-center text-zinc-600 text-[10px] uppercase font-bold tracking-widest">
+        Powered by Osei TV Responsive Player Engine &bull; HLS.js
+    </footer>
+
+    <!-- Scripts -->
+    <script src="/hls-player.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const player = new HlsPlayer('hls-player-component');
+            const stationsGrid = document.getElementById('stations-grid');
+            const customInput = document.getElementById('custom-url-input');
+            const tuneBtn = document.getElementById('tune-btn');
+
+            function selectChannel(ch) {
+                player.load(ch.url);
+                document.getElementById('active-channel-name').textContent = ch.name;
+                document.getElementById('active-channel-category').textContent = ch.category;
+                document.getElementById('active-channel-desc').textContent = `Currently broadcasting ${ch.name} live in high definition.`;
+                
+                // Update active state in grid
+                renderGrid(ch.id);
+            }
+
+            function renderGrid(selectedId) {
+                stationsGrid.innerHTML = '';
+                CHANNELS.forEach(ch => {
+                    const isActive = ch.id === selectedId;
+                    const btn = document.createElement('button');
+                    btn.className = `flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${isActive ? 'bg-red-950/30 border-red-500/50 text-white' : 'bg-transparent border-zinc-800/50 text-zinc-400 hover:bg-zinc-800/30 hover:border-zinc-700'}`;
+                    btn.innerHTML = `
+                        <div class="w-10 h-10 rounded-lg ${isActive ? 'bg-red-600' : 'bg-zinc-800'} flex items-center justify-center font-bold text-white shrink-0">${ch.id}</div>
+                        <div class="min-w-0">
+                            <div class="font-bold text-sm truncate">${ch.name}</div>
+                            <div class="text-[10px] font-black uppercase tracking-wider opacity-60">${ch.category}</div>
+                        </div>
+                    `;
+                    btn.onclick = () => selectChannel(ch);
+                    stationsGrid.appendChild(btn);
+                });
+            }
+
+            tuneBtn.onclick = () => {
+                const url = customInput.value.trim();
+                if (url) {
+                    player.load(url);
+                    document.getElementById('active-channel-name').textContent = "Custom Stream";
+                    document.getElementById('active-channel-category').textContent = "EXTERNAL";
+                    document.getElementById('active-channel-desc').textContent = `Streaming from external source: ${url}`;
+                    renderGrid(null);
+                }
+            };
+
+            // Init with first channel
+            if (CHANNELS.length > 0) {
+                selectChannel(CHANNELS[0]);
+            }
+
+            // PWA Install Handling
+            let deferredPrompt;
+            const modal = document.getElementById('install-modal');
+            const guideBtn = document.getElementById('install-guide-btn');
+            const closeBtn = document.getElementById('close-modal');
+
+            const toggleModal = (show) => {
+                modal.classList.toggle('hidden', !show);
+                if (show) document.body.style.overflow = 'hidden';
+                else document.body.style.overflow = '';
+            };
+
+            guideBtn.onclick = () => toggleModal(true);
+            closeBtn.onclick = () => toggleModal(false);
+            modal.onclick = (e) => { if(e.target === modal) toggleModal(false); };
+
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                console.log('PWA: beforeinstallprompt event fired');
+            });
+
+            // Assistant UI Logic
+            const toggleAssistant = document.getElementById('toggle-assistant');
+            const chatWindow = document.getElementById('chat-window');
+            const closeChat = document.getElementById('close-chat');
+            const chatInput = document.getElementById('chat-input');
+            const sendChat = document.getElementById('send-chat');
+            const chatMessages = document.getElementById('chat-messages');
+
+            function addMessage(text, isUser = false) {
+                const div = document.createElement('div');
+                div.className = isUser 
+                    ? 'bg-red-600/10 border border-red-500/20 p-4 rounded-2xl rounded-tr-none text-sm text-zinc-200 self-end ml-12'
+                    : 'bg-zinc-800/40 p-4 rounded-2xl rounded-tl-none border border-zinc-700/30 text-sm leading-relaxed text-zinc-300 mr-12';
+                div.textContent = text;
+                chatMessages.appendChild(div);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            toggleAssistant.onclick = () => {
+                const isHidden = chatWindow.classList.contains('hidden');
+                if (isHidden) {
+                    chatWindow.classList.remove('hidden');
+                    setTimeout(() => {
+                        chatWindow.classList.add('scale-100', 'opacity-100');
+                        chatWindow.classList.remove('scale-95', 'opacity-0');
+                    }, 10);
+                } else {
+                    chatWindow.classList.add('scale-95', 'opacity-0');
+                    chatWindow.classList.remove('scale-100', 'opacity-100');
+                    setTimeout(() => chatWindow.classList.add('hidden'), 300);
+                }
+            };
+
+            closeChat.onclick = () => toggleAssistant.onclick();
+
+            async function handleSendMessage() {
+                const message = chatInput.value.trim();
+                if (!message) return;
+
+                addMessage(message, true);
+                chatInput.value = '';
+                chatInput.disabled = true;
+                sendChat.disabled = true;
+
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'flex gap-2 p-2';
+                loadingDiv.innerHTML = '<span class="w-1.5 h-1.5 bg-red-500 rounded-full animate-bounce"></span><span class="w-1.5 h-1.5 bg-red-500 rounded-full animate-bounce delay-75"></span><span class="w-1.5 h-1.5 bg-red-500 rounded-full animate-bounce delay-150"></span>';
+                chatMessages.appendChild(loadingDiv);
+
+                try {
+                    const res = await fetch('/api/assistant', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message })
+                    });
+                    const data = await res.json();
+                    loadingDiv.remove();
+                    addMessage(data.response || data.error || 'Server error');
+                } catch (e) {
+                    loadingDiv.remove();
+                    addMessage('Failed to connect to assistant: ' + e.message);
+                } finally {
+                    chatInput.disabled = false;
+                    sendChat.disabled = false;
+                    chatInput.focus();
+                }
+            }
+
+            sendChat.onclick = handleSendMessage;
+            chatInput.onkeydown = (e) => { if(e.key === 'Enter') handleSendMessage(); };
+        });
+    </script>
+</body>
+</html>
